@@ -5,6 +5,7 @@
 #include "utils.h"
 #include <numeric>
 #include <fstream>
+#include <sys/stat.h>
 
 using namespace std;
 F1A_solver::F1A_solver()
@@ -18,10 +19,15 @@ F1A_solver::~F1A_solver()
 
 void F1A_solver::solve(void)
 {
-
 	double begint;
 	double endt;
+	struct stat ex;
 
+	//create folder if not exist
+	if (stat(input.output_fname.c_str(), &ex) == -1)
+		mkdir(input.output_fname.c_str(), 0755);
+
+	//for each observer
 	for (size_t i = 0; i < microphone.n_oberver; i++)
 	{
 		cout << "Calculating the terms of pressure at observer location " << i << " of " << microphone.n_oberver << " as given in Farassat's 1A formulation..." << endl;
@@ -41,8 +47,6 @@ void F1A_solver::solve(void)
 			cout << "  -> ****Skipping the calculation for this microphone location" << i << "." << endl;
 			continue;
 		}
-
-		// Inititalizing all the quantities which are needed in Farassat's 1A calculation.
 
 		// Calculating the source time based on the observer time and interpolating the pressure values on the surface.
 		//calculate pressure term in F1A formulation
@@ -104,14 +108,13 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 	double drho_dt;
 	double w, p1, p2, p3, p4;
 
-	cout << " -> Calculating variables at interpolated source time "
-		 << " ... " << endl;
+	cout << " -> Calculating variables at interpolated source time... " << endl;
 
 	//initialize global arrays
 	//observer time array
-	t.setup((size_t)(endt - begint) / (0.5 * faces.dt) + 1);
+	t.setup((size_t)((endt - begint) / (faces.dt)) + 1);
 	for (size_t i = 0; i < t.get_len(); i++)
-		t(i) = begint + i * 0.5 * faces.dt;
+		t(i) = begint + i * faces.dt;
 
 	//final pressure array
 	pTotal.setup(t.get_len());
@@ -127,7 +130,7 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 	//for each source
 	for (size_t j = 0; j < faces.n_eles; j++)
 	{
-		cout << (double)j / faces.n_eles * 100 << "\%\r";
+		cout << (double)j / faces.n_eles * 100 << "\%   \r"<<flush;
 		counter = 0;
 
 		//calculate interpolated source time variables
@@ -136,9 +139,10 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 			tauCalc = t(timeloop) - src2ob.mag_r(j) / c; //the interpolated src time
 
 			//calculate interpolated variables
+			bool flag=false;
 			while (counter < faces.tau.get_len() - 1)
 			{
-				if (tauCalc > faces.tau(counter) && tauCalc <= faces.tau(counter + 1))
+				if (tauCalc >= faces.tau(counter) && tauCalc < faces.tau(counter + 1))
 				{
 					pressure = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({counter, j, 4}), faces.data({counter + 1, j, 4}));
 					//p\hat{n}
@@ -160,9 +164,13 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 					un(timeloop) = inner_product(velocity.get_ptr(), velocity.get_ptr(3), faces.normal.get_ptr({0, j}), 0.);
 					//|Mr|*c project velocity on distance dir
 					ur(timeloop) = Machr(timeloop) * c;
+					flag=true;
 					break;
 				}
+				counter++;
 			}
+			if (flag == false)
+				Fatal_Error("cant find interpolated source time");
 		}
 
 		//add source term of each element to each observer time step
@@ -198,7 +206,7 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 			pTotal(timeloop) += p1 + p2 + p3 + p4;
 		}
 	}
-	cout << "Done." << endl;
+	cout << "Done.   " << endl;
 }
 
 void F1A_solver::write(size_t obs_idx)
@@ -208,7 +216,8 @@ void F1A_solver::write(size_t obs_idx)
 	sprintf(wtf, "%s/%s_%02d.dat", input.output_fname.c_str(), input.output_fname.c_str(), (int)obs_idx);
 
 	f.open(wtf, std::ofstream::out);
+	f << setprecision(10) << std::scientific;
 	for (size_t i = 0; i < t.get_len(); i++)
-		f << setw(20) << setprecision(15) << t(i) << pTotal(i) << endl;
+		f << t(i) - t(0) << pTotal(i) << endl;
 	f.close();
 }
