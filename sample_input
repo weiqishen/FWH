@@ -1,0 +1,5 @@
+fwh_surf_fname /mnt/c/Workstation/Remote/smc000/r150d_a30d_g020_avg.h5
+output_fname smc_000_18
+observer_x 5 3.265361057 1.737462328 0 -1.737462328 -3.265361057 
+observer_y 5 3.891505771 4.773638514 5.08 4.773638514 3.891505771
+observer_z 5 0 0 0 0 0

@@ -1,0 +1,57 @@
+{
+    // launch.json
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Linux Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/FWH",
+            "args": ["sample_input"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "Work Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/mnt/c/Workstation/FWH/FWH",
+            "args": ["sample_input"],
+            "stopAtEntry": false,
+            "cwd": "/mnt/c/Workstation/FWH",
+            "environment": [],
+            "externalConsole": true,
+            "MIMode": "gdb",
+            "internalConsoleOptions": "openOnSessionStart",
+            "setupCommands": [
+                {
+                    "description": "pretty printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": false
+                }
+            ],
+            "pipeTransport":  {
+                "pipeCwd": "",
+                "pipeProgram": "C:\\Windows\\System32\\bash.exe",
+                "pipeArgs": ["-c","-i"],
+                "debuggerPath": "/usr/bin/gdb"
+            },
+            "sourceFileMap": {
+                "/mnt/c": "c:\\"
+            },
+        }
+    ]
+}
