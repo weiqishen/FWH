@@ -30,7 +30,7 @@ void F1A_solver::solve(void)
 	//for each observer
 	for (size_t i = 0; i < microphone.n_oberver; i++)
 	{
-		cout << "Calculating the terms of pressure at observer location " << i << " of " << microphone.n_oberver << " as given in Farassat's 1A formulation..." << endl;
+		cout << "Calculating the terms of pressure at observer location " << i + 1 << " of " << microphone.n_oberver << " as given in Farassat's 1A formulation..." << endl;
 
 		// Calculating the distance between the source and the observer points.
 		calc_dis_src_obs(i);
@@ -60,7 +60,7 @@ void F1A_solver::solve(void)
 
 void F1A_solver::calc_dis_src_obs(size_t obs_id)
 {
-	cout << " -> Calculating the distance between source and microphone " << obs_id << " ... " << flush;
+	cout << " -> Calculating the distance between source and microphone " << obs_id + 1 << " ... " << flush;
 
 	// Allocates the memory to store the distance between the microphone and the source faces (part 2).
 	src2ob.r.setup({3, faces.n_eles});
