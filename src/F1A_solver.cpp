@@ -99,8 +99,8 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 	ndarray<double> ur;		 // u*\hat{r}/|r| of flow -> velocity in radiation direction
 
 	//temporary variables
-	size_t counter;//global time counters
-	double tauCalc, pressure;//interpolate source time and source pressure
+	size_t counter;			  //global time counters
+	double tauCalc, pressure; //interpolate source time and source pressure
 	ndarray<double> L(3), velocity(3);
 	double dlr_dt;
 	double dMachr_dt;
@@ -131,8 +131,8 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 	//for each source
 	for (size_t j = 0; j < faces.n_eles; j++)
 	{
-		cout << setprecision(3) << (double)j / faces.n_eles * 100 << "\%   \r" << flush;
-		
+		cout << setprecision(3) << (double)j / faces.n_eles * 100 << "%   \r" << flush;
+
 		counter = 0;
 		//calculate interpolated source time variables
 		for (size_t timeloop = 0; timeloop < t.get_len(); timeloop++) //for each observer time step
@@ -165,7 +165,7 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 					un(timeloop) = inner_product(velocity.get_ptr(), velocity.get_ptr(3), faces.normal.get_ptr({0, j}), 0.);
 					//|Mr|*c project velocity on distance dir
 					ur(timeloop) = Machr(timeloop) * c;
-					flag=true;
+					flag = true;
 					break;
 				}
 				counter++;

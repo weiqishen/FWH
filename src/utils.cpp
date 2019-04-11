@@ -41,30 +41,30 @@ double get_weight(double x)
 	}
 	else if (x == 25 * 0.0508 || x == 26 * 0.0508 || x == 27 * 0.0508 || x == 28 * 0.0508 || x == 29 * 0.0508 || x == 30 * 0.0508)
 	{
-		return 1 / 6;
+		return 1. / 6.;
 	}
 	else if (x > 25 * 0.0508 && x < 26 * 0.0508)
 	{
-		return 5 / 6;
+		return 5. / 6.;
 	}
 	else if (x > 26 * 0.0508 && x < 27 * 0.0508)
 	{
-		return 4 / 6;
+		return 4. / 6.;
 	}
 	else if (x > 27 * 0.0508 && x < 28 * 0.0508)
 	{
-		return 3 / 6;
+		return 3. / 6.;
 	}
 	else if (x > 28 * 0.0508 && x < 29 * 0.0508)
 	{
-		return 2 / 6;
+		return 2. / 6.;
 	}
 	else if (x > 29 * 0.0508 && x < 30 * 0.0508)
 	{
-		return 1 / 6;
+		return 1. / 6.;
 	}
 	else
 	{
-		return -1;
+		return 0.;
 	}
 }
