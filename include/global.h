@@ -13,7 +13,7 @@
 
 #include "ndarray.h"
 
-#define VERSION 0.5
+#define VERSION 1.0
 
 struct Params
 {
@@ -22,6 +22,8 @@ struct Params
 	double R_gas;
 	string fwh_surf_fname;
 	string output_fname;
+	int endcap_avg;
+	ndarray<double> endcap_x;
 };
 
 struct FWH_surf

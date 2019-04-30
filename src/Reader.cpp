@@ -199,6 +199,13 @@ void Reader::read_input()
 
 	if (microphone.y.get_len() != microphone.n_oberver || microphone.z.get_len() != microphone.n_oberver)
 		Fatal_Error("Number of observers not agree in each dimension");
+
+	//endcap averaging
+	pr.getScalarValue("endcap_avg", input.endcap_avg, 0);
+	if (input.endcap_avg)
+	{
+		pr.getVectorValue("endcap_x", input.endcap_x);
+	}
 	pr.closeFile();
 	cout << "Done.\n";
 }
