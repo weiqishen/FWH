@@ -145,7 +145,7 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 			{
 				if (tauCalc >= faces.tau(counter) && tauCalc <= faces.tau(counter + 1))
 				{
-					pressure = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({counter, j, 4}), faces.data({counter + 1, j, 4}));
+					pressure = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 4, counter}), faces.data({j, 4, counter + 1}));
 					//p\hat{n}
 					L(0) = pressure * faces.normal({0, j});
 					L(1) = pressure * faces.normal({1, j});
@@ -153,11 +153,11 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 					//p\hat{n}*\hat{r}/|r|, project normal stress on distance dir
 					Lr(timeloop) = inner_product(L.get_ptr(), L.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j);
 
-					rhoCalc(timeloop) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({counter, j, 0}), faces.data({counter + 1, j, 0}));
+					rhoCalc(timeloop) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}));
 
-					velocity(0) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({counter, j, 1}), faces.data({counter + 1, j, 1}));
-					velocity(1) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({counter, j, 2}), faces.data({counter + 1, j, 2}));
-					velocity(2) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({counter, j, 3}), faces.data({counter + 1, j, 3}));
+					velocity(0) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 1, counter}), faces.data({j, 1, counter + 1}));
+					velocity(1) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 2, counter}), faces.data({j, 2, counter + 1}));
+					velocity(2) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 3, counter}), faces.data({j, 3, counter + 1}));
 
 					//\hat{u}/c*\hat{r}/|r| project mach number on distance dir
 					Machr(timeloop) = inner_product(velocity.get_ptr(), velocity.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j) / c;
