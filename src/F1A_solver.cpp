@@ -91,50 +91,73 @@ double F1A_solver::get_final_signal_time()
 
 void F1A_solver::calc_pressure_term(double endt, double begint)
 {
-	//element local arrays
-	ndarray<double> Lr;		 // Lr = Li*\hat{r}/|r| -> Li = p\hat{n} and r = radiation vector from source faces to microphone location
-	ndarray<double> rhoCalc; // Interpolated density at source
-	ndarray<double> Machr;   // M*\hat{r}/|r| of flow -> M = Mach number and r = radiation vector from source faces to mic location
-	ndarray<double> un;		 // u*\hat{n} of flow -> Normal velocity
-	ndarray<double> ur;		 // u*\hat{r}/|r| of flow -> velocity in radiation direction
+	//at source time
+	ndarray<double> Lr_tau;	// Lr = Li*\hat{r}/|r| -> Li = p\hat{n} and r = radiation vector from source faces to microphone location
+	ndarray<double> Machr_tau; // M*\hat{r}/|r| of flow -> M = Mach number and r = radiation vector from source faces to mic location
+	ndarray<double> un_tau;	// u*\hat{n} of flow -> Normal velocity
+	ndarray<double> ur_tau;	// u*\hat{r}/|r| of flow -> velocity in radiation direction
+	ndarray<double> L_tau(3), velocity_tau(3);	//Li = p\hat{n}
 
 	//temporary variables
-	size_t counter;			  //global time counters
-	double tauCalc, pressure; //interpolate source time and source pressure
-	ndarray<double> L(3), velocity(3);
-	double dlr_dt;
-	double dMachr_dt;
-	double dun_dt;
-	double drho_dt;
-	double w, p1, p2, p3, p4;
+	size_t counter; //global time counters
+	double tauCalc; //interpolate source time
 	bool flag;
+
+	//at interpolated source time
+	double dlr_dt, lrCalc;
+	double dMachr_dt, MachrCalc;
+	double dun_dt, unCalc, urCalc;
+	double drho_dt, rhoCalc;
+	double w, p1, p2, p3, p4;
 
 	cout << " -> Calculating variables at interpolated source time... " << endl;
 
 	//initialize global arrays
 	//observer time array
-	t.setup((size_t)((endt - begint) / (0.5 * faces.dt)) + 1);
+	t.setup((size_t)((endt - begint) / faces.dt) + 1);
 	for (size_t i = 0; i < t.get_len(); i++)
-		t(i) = begint + i * 0.5 * faces.dt;
+		t(i) = begint + i * faces.dt;
 
 	//final pressure array
 	pTotal.setup(t.get_len());
 	pTotal = 0.;
 
 	//initialize element local arrays
-	Lr.setup(t.get_len());
-	rhoCalc.setup(t.get_len());
-	Machr.setup(t.get_len());
-	un.setup(t.get_len());
-	ur.setup(t.get_len());
+	Lr_tau.setup(faces.tau.get_len());
+	Machr_tau.setup(faces.tau.get_len());
+	un_tau.setup(faces.tau.get_len());
+	ur_tau.setup(faces.tau.get_len());
 
 	//for each source
 	for (size_t j = 0; j < faces.n_eles; j++)
 	{
 		cout << setprecision(3) << (double)j / faces.n_eles * 100 << "%   \r" << flush;
 
+		//at source time
+		for (size_t i = 0; i < faces.tau.get_len(); i++)
+		{
+			//p\hat{n}
+			L_tau(0) = faces.data({j, 4, i}) * faces.normal({0, j});
+			L_tau(1) = faces.data({j, 4, i}) * faces.normal({1, j});
+			L_tau(2) = faces.data({j, 4, i}) * faces.normal({2, j});
+
+			//p\hat{n}*\hat{r}/|r|, project normal stress on distance dir
+			Lr_tau(i) = inner_product(L_tau.get_ptr(), L_tau.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j);
+
+			velocity_tau(0) = faces.data({j, 1, i});
+			velocity_tau(1) = faces.data({j, 2, i});
+			velocity_tau(2) = faces.data({j, 3, i});
+
+			//\hat{u}/c*\hat{r}/|r| project mach number on distance dir
+			Machr_tau(i) = inner_product(velocity_tau.get_ptr(), velocity_tau.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j) / c;
+			//\hat{u}*\hat{n} normal velocity
+			un_tau(i) = inner_product(velocity_tau.get_ptr(), velocity_tau.get_ptr(3), faces.normal.get_ptr({0, j}), 0.);
+			//|Mr|*c project velocity on distance dir
+			ur_tau(i) = Machr_tau(i) * c;
+		}
+
 		counter = 0;
-		//calculate interpolated source time variables
+		//at interpolated source time
 		for (size_t timeloop = 0; timeloop < t.get_len(); timeloop++) //for each observer time step
 		{
 			tauCalc = t(timeloop) - src2ob.mag_r(j) / c; //the interpolated src time
@@ -143,28 +166,26 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 			flag = false;
 			while (counter < faces.tau.get_len() - 1)
 			{
-				if (tauCalc >= faces.tau(counter) && tauCalc <= faces.tau(counter + 1))
+				if (tauCalc >= faces.tau(counter) && tauCalc < faces.tau(counter + 1))
 				{
-					pressure = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 4, counter}), faces.data({j, 4, counter + 1}));
-					//p\hat{n}
-					L(0) = pressure * faces.normal({0, j});
-					L(1) = pressure * faces.normal({1, j});
-					L(2) = pressure * faces.normal({2, j});
-					//p\hat{n}*\hat{r}/|r|, project normal stress on distance dir
-					Lr(timeloop) = inner_product(L.get_ptr(), L.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j);
+					dlr_dt = calc_slope(Lr_tau(counter), Lr_tau(counter + 1), faces.dt);
+					dMachr_dt = calc_slope(Machr_tau(counter), Machr_tau(counter + 1), faces.dt);
+					dun_dt = calc_slope(un_tau(counter), un_tau(counter + 1), faces.dt);
+					drho_dt = calc_slope(faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}), faces.dt);
 
-					rhoCalc(timeloop) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}));
+					lrCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, Lr_tau(counter), Lr_tau(counter + 1));
+					MachrCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, Machr_tau(counter), Machr_tau(counter + 1));
+					unCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, un_tau(counter), un_tau(counter + 1));
+					urCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, ur_tau(counter), ur_tau(counter + 1));
+					rhoCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}));
 
-					velocity(0) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 1, counter}), faces.data({j, 1, counter + 1}));
-					velocity(1) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 2, counter}), faces.data({j, 2, counter + 1}));
-					velocity(2) = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 3, counter}), faces.data({j, 3, counter + 1}));
+					w = get_weight(faces.center({0, j}));
+					p1 = dlr_dt / (c * src2ob.mag_r(j));
+					p2 = lrCalc / pow(src2ob.mag_r(j), 2);
+					p3 = ((rhoCalc * unCalc * dMachr_dt) + (1 + MachrCalc) * (rhoCalc * dun_dt + unCalc * drho_dt)) / src2ob.mag_r(j);
+					p4 = rhoCalc * unCalc * urCalc / pow(src2ob.mag_r(j), 2);
+					pTotal(timeloop) += (p1 + p2 + p3 + p4) * (faces.A(j) * w) / (4. * PI);
 
-					//\hat{u}/c*\hat{r}/|r| project mach number on distance dir
-					Machr(timeloop) = inner_product(velocity.get_ptr(), velocity.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j) / c;
-					//\hat{u}*\hat{n} normal velocity
-					un(timeloop) = inner_product(velocity.get_ptr(), velocity.get_ptr(3), faces.normal.get_ptr({0, j}), 0.);
-					//|Mr|*c project velocity on distance dir
-					ur(timeloop) = Machr(timeloop) * c;
 					flag = true;
 					break;
 				}
@@ -172,39 +193,6 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 			}
 			if (flag == false)
 				Fatal_Error("cant find interpolated source time");
-		}
-
-		//add source term of each element to each observer time step
-		for (size_t timeloop = 0; timeloop < t.get_len(); timeloop++) //for each observer time step
-		{
-			if (timeloop > 0 && timeloop < t.get_len() - 1)
-			{
-				dlr_dt = secondOrderCentralDiff(Lr(timeloop - 1), Lr(timeloop + 1), 0.5 * faces.dt);
-				dMachr_dt = secondOrderCentralDiff(Machr(timeloop - 1), Machr(timeloop + 1), 0.5 * faces.dt);
-				dun_dt = secondOrderCentralDiff(un(timeloop - 1), un(timeloop + 1), 0.5 * faces.dt);
-				drho_dt = secondOrderCentralDiff(rhoCalc(timeloop - 1), rhoCalc(timeloop + 1), 0.5 * faces.dt);
-			}
-			else if (timeloop == 0)
-			{
-				dlr_dt = secondOrderBackwardDiff(-Lr(timeloop), -Lr(timeloop + 1), -Lr(timeloop + 2), 0.5 * faces.dt);
-				dMachr_dt = secondOrderBackwardDiff(-Machr(timeloop), -Machr(timeloop + 1), -Machr(timeloop + 2), 0.5 * faces.dt);
-				dun_dt = secondOrderBackwardDiff(-un(timeloop), -un(timeloop + 1), -un(timeloop + 2), 0.5 * faces.dt);
-				drho_dt = secondOrderBackwardDiff(-rhoCalc(timeloop), -rhoCalc(timeloop + 1), -rhoCalc(timeloop + 2), 0.5 * faces.dt);
-			}
-			else
-			{
-				dlr_dt = secondOrderBackwardDiff(Lr(timeloop), Lr(timeloop - 1), Lr(timeloop - 2), 0.5 * faces.dt);
-				dMachr_dt = secondOrderBackwardDiff(Machr(timeloop), Machr(timeloop - 1), Machr(timeloop - 2), 0.5 * faces.dt);
-				dun_dt = secondOrderBackwardDiff(un(timeloop), un(timeloop - 1), un(timeloop - 2), 0.5 * faces.dt);
-				drho_dt = secondOrderBackwardDiff(rhoCalc(timeloop), rhoCalc(timeloop - 1), rhoCalc(timeloop - 2), 0.5 * faces.dt);
-			}
-
-			w = get_weight(faces.center({0, j}));
-			p1 = dlr_dt * faces.A(j) * w / (c * src2ob.mag_r(j) * 4 * PI);
-			p2 = Lr(timeloop) * faces.A(j) * w / (pow(src2ob.mag_r(j), 2) * 4 * PI);
-			p3 = ((rhoCalc(timeloop) * un(timeloop) * dMachr_dt) + (1 + Machr(timeloop)) * (rhoCalc(timeloop) * dun_dt + un(timeloop) * drho_dt)) * faces.A(j) * w / (src2ob.mag_r(j) * 4 * PI);
-			p4 = rhoCalc(timeloop) * un(timeloop) * ur(timeloop) * faces.A(j) * w / (pow(src2ob.mag_r(j), 2) * 4 * PI);
-			pTotal(timeloop) += p1 + p2 + p3 + p4;
 		}
 	}
 	cout << "Done.   " << endl;
