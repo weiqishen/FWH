@@ -214,19 +214,19 @@ double F1A_solver::get_weight(double x)
 {
 	if (input.endcap_avg)
 	{
-		int n_endcaps = input.endcap_x.get_len();
+		size_t n_endcaps = input.endcap_x.get_len();
 
 		if (x < input.endcap_x(0))
 			return 1.0;
-		for (int i = 0; i < n_endcaps - 1; i++)
+		for (size_t i = 0; i < n_endcaps - 1; i++)
 		{
 			if (x == input.endcap_x(i))
-				return 1.0 / n_endcaps;
+				return 1.0 / (double)n_endcaps;
 			else if (x > input.endcap_x(i) && x < input.endcap_x(i + 1))
-				return (double)(n_endcaps - 1 - i) / n_endcaps;
+				return (double)(n_endcaps - 1 - i) / (double)n_endcaps;
 		}
 		if (x == input.endcap_x(n_endcaps - 1))
-			return 1.0 / n_endcaps;
+			return 1.0 / (double)n_endcaps;
 
 		return 0.0;
 	}
