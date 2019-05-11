@@ -19,7 +19,7 @@ double calc_slope(double pL, double pU, double h)
 {
 	double result;
 
-	result = (pU - pL) / (2 * h);
+	result = (pU - pL) / h;
 
 	return result;
 }
