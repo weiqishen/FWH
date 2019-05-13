@@ -168,10 +168,30 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 			{
 				if (tauCalc >= faces.tau(counter) && tauCalc < faces.tau(counter + 1))
 				{
-					dlr_dt = calc_slope(Lr_tau(counter), Lr_tau(counter + 1), faces.dt);
-					dMachr_dt = calc_slope(Machr_tau(counter), Machr_tau(counter + 1), faces.dt);
-					dun_dt = calc_slope(un_tau(counter), un_tau(counter + 1), faces.dt);
-					drho_dt = calc_slope(faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}), faces.dt);
+					if (tauCalc != faces.tau(counter)) //use 2 neighbouring soure time
+					{
+						dlr_dt = calc_slope(Lr_tau(counter), Lr_tau(counter + 1), faces.dt);
+						dMachr_dt = calc_slope(Machr_tau(counter), Machr_tau(counter + 1), faces.dt);
+						dun_dt = calc_slope(un_tau(counter), un_tau(counter + 1), faces.dt);
+						drho_dt = calc_slope(faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}), faces.dt);
+					}
+					else
+					{
+						if (counter > 0)
+						{
+							dlr_dt = calc_slope(Lr_tau(counter - 1), Lr_tau(counter + 1), 2 * faces.dt);
+							dMachr_dt = calc_slope(Machr_tau(counter - 1), Machr_tau(counter + 1), 2 * faces.dt);
+							dun_dt = calc_slope(un_tau(counter - 1), un_tau(counter + 1), 2 * faces.dt);
+							drho_dt = calc_slope(faces.data({j, 0, counter - 1}), faces.data({j, 0, counter + 1}), 2 * faces.dt);
+						}
+						else
+						{
+							dlr_dt = calc_slope(Lr_tau(counter), Lr_tau(counter + 1), faces.dt);
+							dMachr_dt = calc_slope(Machr_tau(counter), Machr_tau(counter + 1), faces.dt);
+							dun_dt = calc_slope(un_tau(counter), un_tau(counter + 1), faces.dt);
+							drho_dt = calc_slope(faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}), faces.dt);
+						}
+					}
 
 					lrCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, Lr_tau(counter), Lr_tau(counter + 1));
 					MachrCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, Machr_tau(counter), Machr_tau(counter + 1));
