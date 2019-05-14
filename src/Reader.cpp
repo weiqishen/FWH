@@ -211,12 +211,16 @@ void Reader::read_input()
 	pr.getScalarValue("endcap_avg", input.endcap_avg);
 	if (input.endcap_avg)
 	{
+		pr.getScalarValue("endcap_x_scale", input.endcap_x_scale, 1.0);//scale the endcap location
 		pr.getVectorValue("endcap_x", input.endcap_x);
+		input.n_endcaps = input.endcap_x.get_len();
+		for (size_t i = 0; i < input.n_endcaps; i++)//scale the endcap position
+			input.endcap_x(i) *= input.endcap_x_scale;
 	}
 	pr.closeFile();
 	cout << "Done.\n";
 	if (input.endcap_avg)
-		cout << "Number of endcaps: " << input.endcap_x.get_len() << endl;
+		cout << "Number of endcaps: " << input.n_endcaps << endl;
 }
 
 Reader::~Reader()

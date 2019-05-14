@@ -20,9 +20,11 @@ struct Params
 	double T_static;
 	double gamma;
 	double R_gas;
+	double endcap_x_scale;
 	string fwh_surf_fname;
 	string output_fname;
 	int endcap_avg;
+	size_t n_endcaps;
 	ndarray<double> endcap_x;
 };
 
