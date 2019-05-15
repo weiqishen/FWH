@@ -196,6 +196,7 @@ void Reader::read_input()
 	pr.getScalarValue("T_static", input.T_static, 300.);
 	pr.getScalarValue("gamma", input.gamma, 1.4);
 	pr.getScalarValue("R_gas", input.R_gas, 286.9);
+	pr.getScalarValue("p_static",input.p_static,101325.);
 	pr.getScalarValue("fwh_surf_fname", input.fwh_surf_fname);
 	pr.getScalarValue("output_fname", input.output_fname);
 	//read observer positions

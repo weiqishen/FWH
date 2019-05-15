@@ -92,7 +92,7 @@ double F1A_solver::get_final_signal_time()
 void F1A_solver::calc_pressure_term(double endt, double begint)
 {
 	//at source time
-	ndarray<double> Lr_tau;	// Lr = Li*\hat{r}/|r| -> Li = p\hat{n} and r = radiation vector from source faces to microphone location
+	ndarray<double> Lr_tau;	// Lr = Li*\hat{r}/|r| -> Li = p'\hat{n} and r = radiation vector from source faces to microphone location
 	ndarray<double> Machr_tau; // M*\hat{r}/|r| of flow -> M = Mach number and r = radiation vector from source faces to mic location
 	ndarray<double> un_tau;	// u*\hat{n} of flow -> Normal velocity
 	ndarray<double> ur_tau;	// u*\hat{r}/|r| of flow -> velocity in radiation direction
@@ -136,24 +136,24 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 		//at source time
 		for (size_t i = 0; i < faces.tau.get_len(); i++)
 		{
-			//p\hat{n}
-			L_tau(0) = faces.data({j, 4, i}) * faces.normal({0, j});
-			L_tau(1) = faces.data({j, 4, i}) * faces.normal({1, j});
-			L_tau(2) = faces.data({j, 4, i}) * faces.normal({2, j});
+			//p'\hat{n}
+			L_tau(0) = (faces.data({j, 4, i}) - input.p_static) * faces.normal({0, j});
+			L_tau(1) = (faces.data({j, 4, i}) - input.p_static) * faces.normal({1, j});
+			L_tau(2) = (faces.data({j, 4, i}) - input.p_static) * faces.normal({2, j});
 
-			//p\hat{n}*\hat{r}/|r|, project normal stress on distance dir
+			//p'\hat{n}*\hat{r}/|r|, project normal stress on distance dir
 			Lr_tau(i) = inner_product(L_tau.get_ptr(), L_tau.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j);
 
 			velocity_tau(0) = faces.data({j, 1, i});
 			velocity_tau(1) = faces.data({j, 2, i});
 			velocity_tau(2) = faces.data({j, 3, i});
 
-			//\hat{u}/c*\hat{r}/|r| project mach number on distance dir
-			Machr_tau(i) = inner_product(velocity_tau.get_ptr(), velocity_tau.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j) / c;
+			//u_r=\hat{u}*\hat{r}/|r|
+			ur_tau(i) = inner_product(velocity_tau.get_ptr(), velocity_tau.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j);
 			//\hat{u}*\hat{n} normal velocity
 			un_tau(i) = inner_product(velocity_tau.get_ptr(), velocity_tau.get_ptr(3), faces.normal.get_ptr({0, j}), 0.);
-			//|Mr|*c project velocity on distance dir
-			ur_tau(i) = Machr_tau(i) * c;
+			//mach_r=u_r/c
+			Machr_tau(i) = ur_tau(i) / c;
 		}
 
 		counter = 0;

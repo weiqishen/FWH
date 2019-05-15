@@ -17,7 +17,7 @@
 
 struct Params
 {
-	double T_static;
+	double T_static,p_static;
 	double gamma;
 	double R_gas;
 	double endcap_x_scale;
