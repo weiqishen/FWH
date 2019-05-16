@@ -10,7 +10,8 @@
 using namespace std;
 F1A_solver::F1A_solver()
 {
-	c = sqrt(input.gamma * input.R_gas * input.T_static);
+	c_infty = sqrt(input.gamma * input.R_gas * input.T_static);//c_infty=sqrt(yRT)
+	rho_infty = input.p_static / (input.R_gas * input.T_static);//rho_infty=p/RT
 }
 
 F1A_solver::~F1A_solver()
@@ -81,18 +82,19 @@ void F1A_solver::calc_dis_src_obs(size_t obs_id)
 
 double F1A_solver::get_begin_signal_time()
 {
-	return faces.tau(0) + src2ob.mag_r.get_max() / c;
+	return faces.tau(0) + src2ob.mag_r.get_max() / c_infty;
 }
 
 double F1A_solver::get_final_signal_time()
 {
-	return faces.tau(faces.tau.get_len() - 1) + src2ob.mag_r.get_min() / c;
+	return faces.tau(faces.tau.get_len() - 1) + src2ob.mag_r.get_min() / c_infty;
 }
 
 void F1A_solver::calc_pressure_term(double endt, double begint)
 {
 	//at source time
 	ndarray<double> Lr_tau;	// Lr = Li*\hat{r}/|r| -> Li = p'\hat{n} and r = radiation vector from source faces to microphone location
+	ndarray<double> rho_star_tau; //rho*=\rho_\infty+p'/c_\infty^2
 	ndarray<double> Machr_tau; // M*\hat{r}/|r| of flow -> M = Mach number and r = radiation vector from source faces to mic location
 	ndarray<double> un_tau;	// u*\hat{n} of flow -> Normal velocity
 	ndarray<double> ur_tau;	// u*\hat{r}/|r| of flow -> velocity in radiation direction
@@ -107,7 +109,7 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 	double dlr_dt, lrCalc;
 	double dMachr_dt, MachrCalc;
 	double dun_dt, unCalc, urCalc;
-	double drho_dt, rhoCalc;
+	double drho_star_dt, rho_starCalc;
 	double w, p1, p2, p3, p4;
 
 	cout << " -> Calculating variables at interpolated source time... " << endl;
@@ -124,6 +126,7 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 
 	//initialize element local arrays
 	Lr_tau.setup(faces.tau.get_len());
+	rho_star_tau.setup(faces.tau.get_len());
 	Machr_tau.setup(faces.tau.get_len());
 	un_tau.setup(faces.tau.get_len());
 	ur_tau.setup(faces.tau.get_len());
@@ -141,6 +144,8 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 			L_tau(1) = (faces.data({j, 4, i}) - input.p_static) * faces.normal({1, j});
 			L_tau(2) = (faces.data({j, 4, i}) - input.p_static) * faces.normal({2, j});
 
+			//rho*=\rho_\infty+p'/c_\infty^2
+			rho_star_tau(i) = rho_infty + (faces.data({j, 4, i}) - input.p_static) / pow(c_infty,2);
 			//p'\hat{n}*\hat{r}/|r|, project normal stress on distance dir
 			Lr_tau(i) = inner_product(L_tau.get_ptr(), L_tau.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j);
 
@@ -152,15 +157,15 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 			ur_tau(i) = inner_product(velocity_tau.get_ptr(), velocity_tau.get_ptr(3), src2ob.r.get_ptr({0, j}), 0.) / src2ob.mag_r(j);
 			//\hat{u}*\hat{n} normal velocity
 			un_tau(i) = inner_product(velocity_tau.get_ptr(), velocity_tau.get_ptr(3), faces.normal.get_ptr({0, j}), 0.);
-			//mach_r=u_r/c
-			Machr_tau(i) = ur_tau(i) / c;
+			//mach_r=u_r/c_infty
+			Machr_tau(i) = ur_tau(i) / c_infty;
 		}
 
 		counter = 0;
 		//at interpolated source time
 		for (size_t timeloop = 0; timeloop < t.get_len(); timeloop++) //for each observer time step
 		{
-			tauCalc = t(timeloop) - src2ob.mag_r(j) / c; //the interpolated src time
+			tauCalc = t(timeloop) - src2ob.mag_r(j) / c_infty; //the interpolated src time
 
 			//calculate interpolated variables
 			flag = false;
@@ -173,7 +178,7 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 						dlr_dt = calc_slope(Lr_tau(counter), Lr_tau(counter + 1), faces.dt);
 						dMachr_dt = calc_slope(Machr_tau(counter), Machr_tau(counter + 1), faces.dt);
 						dun_dt = calc_slope(un_tau(counter), un_tau(counter + 1), faces.dt);
-						drho_dt = calc_slope(faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}), faces.dt);
+						drho_star_dt = calc_slope(rho_star_tau(counter), rho_star_tau(counter + 1), faces.dt);
 					}
 					else
 					{
@@ -182,14 +187,14 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 							dlr_dt = calc_slope(Lr_tau(counter - 1), Lr_tau(counter + 1), 2 * faces.dt);
 							dMachr_dt = calc_slope(Machr_tau(counter - 1), Machr_tau(counter + 1), 2 * faces.dt);
 							dun_dt = calc_slope(un_tau(counter - 1), un_tau(counter + 1), 2 * faces.dt);
-							drho_dt = calc_slope(faces.data({j, 0, counter - 1}), faces.data({j, 0, counter + 1}), 2 * faces.dt);
+							drho_star_dt = calc_slope(rho_star_tau(counter - 1), rho_star_tau(counter + 1), 2 * faces.dt);
 						}
 						else
 						{
 							dlr_dt = calc_slope(Lr_tau(counter), Lr_tau(counter + 1), faces.dt);
 							dMachr_dt = calc_slope(Machr_tau(counter), Machr_tau(counter + 1), faces.dt);
 							dun_dt = calc_slope(un_tau(counter), un_tau(counter + 1), faces.dt);
-							drho_dt = calc_slope(faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}), faces.dt);
+							drho_star_dt = calc_slope(rho_star_tau(counter), rho_star_tau(counter + 1), faces.dt);
 						}
 					}
 
@@ -197,13 +202,13 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 					MachrCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, Machr_tau(counter), Machr_tau(counter + 1));
 					unCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, un_tau(counter), un_tau(counter + 1));
 					urCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, ur_tau(counter), ur_tau(counter + 1));
-					rhoCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, faces.data({j, 0, counter}), faces.data({j, 0, counter + 1}));
+					rho_starCalc = linearInterpolate(faces.tau(counter), faces.tau(counter + 1), tauCalc, rho_star_tau(counter), rho_star_tau(counter + 1));
 
 					w = get_weight(faces.center({0, j}));
-					p1 = dlr_dt / (c * src2ob.mag_r(j));
+					p1 = dlr_dt / (c_infty * src2ob.mag_r(j));
 					p2 = lrCalc / pow(src2ob.mag_r(j), 2);
-					p3 = ((rhoCalc * unCalc * dMachr_dt) + (1 + MachrCalc) * (rhoCalc * dun_dt + unCalc * drho_dt)) / src2ob.mag_r(j);
-					p4 = rhoCalc * unCalc * urCalc / pow(src2ob.mag_r(j), 2);
+					p3 = ((rho_starCalc * unCalc * dMachr_dt) + (1 + MachrCalc) * (rho_starCalc * dun_dt + unCalc * drho_star_dt)) / src2ob.mag_r(j);
+					p4 = rho_starCalc * unCalc * urCalc / pow(src2ob.mag_r(j), 2);
 					pTotal(timeloop) += (p1 + p2 + p3 + p4) * (faces.A(j) * w) / (4. * PI);
 
 					flag = true;

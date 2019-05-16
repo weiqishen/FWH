@@ -18,7 +18,7 @@ private:
 	double get_weight(double x);
 	void write(size_t obs_id);
 	//data member
-	double c;								 //speed of sound
+	double c_infty,rho_infty;								 //speed of sound
 	ndarray<double> t;		 //observer time
 	ndarray<double> pTotal;  // Total pressure at the microphone
 	dist src2ob;				//vector of sources to observer
