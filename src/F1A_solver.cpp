@@ -225,18 +225,19 @@ void F1A_solver::calc_pressure_term(double endt, double begint)
 
 double F1A_solver::get_weight(double x)
 {
+	double eps = 1e-10;
 	if (input.endcap_avg)
 	{
-		if (x < input.endcap_x(0))
+		if (x < (input.endcap_x(0) - eps))
 			return 1.0;
 		for (size_t i = 0; i < input.n_endcaps - 1; i++)
 		{
-			if (x == input.endcap_x(i))
+			if (fabs(x - input.endcap_x(i)) <= eps)
 				return 1.0 / (double)input.n_endcaps;
-			else if (x > input.endcap_x(i) && x < input.endcap_x(i + 1))
+			else if (x > input.endcap_x(i) + eps && x < input.endcap_x(i + 1) - eps)
 				return (double)(input.n_endcaps - 1 - i) / (double)input.n_endcaps;
 		}
-		if (x == input.endcap_x(input.n_endcaps - 1))
+		if (fabs(x - input.endcap_x(input.n_endcaps - 1)) <= eps)
 			return 1.0 / (double)input.n_endcaps;
 
 		return 0.0;

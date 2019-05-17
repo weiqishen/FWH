@@ -20,7 +20,6 @@ struct Params
 	double T_static,p_static;
 	double gamma;
 	double R_gas;
-	double endcap_x_scale;
 	string fwh_surf_fname;
 	string output_fname;
 	int endcap_avg;
